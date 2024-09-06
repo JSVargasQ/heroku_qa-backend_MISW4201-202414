@@ -144,4 +144,3 @@ cython_debug/
 
 #DataBase
 test.db
-instance/eporra.db
