@@ -1,10 +1,13 @@
 import json
 from unittest import TestCase
 
+from datetime import timedelta
 from faker import Faker
 from faker.generator import random
-
 from app import app
+from modelos import db, Usuario, Evento, Apuesta
+
+fake = Faker()
 
 
 class TestApuesta(TestCase):
@@ -48,6 +51,7 @@ class TestApuesta(TestCase):
 
         respuesta_al_crear_apostador = json.loads(solicitud_nuevo_apostador.get_data())
         self.id_apostador = respuesta_al_crear_apostador["id"]
+        self.apostador_token = respuesta_al_crear_apostador["token"]
 
         nuevo_apostador2 = {
             "rol": "Apostador",
@@ -69,42 +73,57 @@ class TestApuesta(TestCase):
 
         self.id_apostador2 = respuesta_al_crear_apostador2["id"]
 
+    def tearDown(self) -> None:
+        db.session.query(Usuario).filter(Usuario.id == self.usuario_code).delete()
+        db.session.query(Usuario).filter(Usuario.id == self.id_apostador).delete()
+        db.session.query(Usuario).filter(Usuario.id == self.id_apostador2).delete()
+        db.session.commit()
+
     def test_crear_apuesta(self):
-        nueva_carrera = {
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        nuevo_evento = {
             "nombre": self.data_factory.sentence(),
-            "competidores": [
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
                 {
                     "probabilidad": 0.6,
-                    "competidor": "Lorem ipsum"
+                    "posible_resultado": "Lorem ipsum",
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 }
             ]
         }
 
-        endpoint_carreras = "/usuario/{}/carreras".format(str(self.usuario_code))
+
+        endpoint_eventos = "/usuario/{}/eventos".format(str(self.usuario_code))
         headers = {'Content-Type': 'application/json', "Authorization": "Bearer {}".format(self.token)}
 
-        solicitud_nueva_carrera = self.client.post(endpoint_carreras,
-                                                   data=json.dumps(nueva_carrera),
+        solicitud_nuevo_evento = self.client.post(endpoint_eventos,
+                                                   data=json.dumps(nuevo_evento),
                                                    headers=headers)
 
-        respuesta_al_crear_carrera = json.loads(solicitud_nueva_carrera.get_data())
-        id_carrera = respuesta_al_crear_carrera["id"]
-        id_competidor = \
-        [x for x in respuesta_al_crear_carrera["competidores"] if x["nombre_competidor"] == "Lorem ipsum"][0]["id"]
+        respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
+        id_evento = respuesta_al_crear_evento["id"]
+        id_posible_resultado = \
+        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Lorem ipsum"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 10000),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         endpoint_apuestas = "/apuestas"
@@ -120,41 +139,49 @@ class TestApuesta(TestCase):
         self.assertEqual(id_apostador, self.id_apostador)
 
     def test_editar_apuesta(self):
-        nueva_carrera = {
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        nuevo_event = {
             "nombre": self.data_factory.sentence(),
-            "competidores": [
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
                 {
                     "probabilidad": 0.6,
-                    "competidor": "Damian Corral"
+                    "posible_resultado": "Damian Corral",
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 }
             ]
         }
 
-        endpoint_carreras = "/usuario/{}/carreras".format(str(self.usuario_code))
+        endpoint_eventos = "/usuario/{}/eventos".format(str(self.usuario_code))
         headers = {'Content-Type': 'application/json', "Authorization": "Bearer {}".format(self.token)}
 
-        solicitud_nueva_carrera = self.client.post(endpoint_carreras,
-                                                   data=json.dumps(nueva_carrera),
+        solicitud_nuevo_evento = self.client.post(endpoint_eventos,
+                                                   data=json.dumps(nuevo_event),
                                                    headers=headers)
 
-        respuesta_al_crear_carrera = json.loads(solicitud_nueva_carrera.get_data())
-        id_carrera = respuesta_al_crear_carrera["id"]
-        id_competidor = \
-        [x for x in respuesta_al_crear_carrera["competidores"] if x["nombre_competidor"] == "Damian Corral"][0]["id"]
+        respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
+        id_evento = respuesta_al_crear_evento["id"]
+        id_posible_resultado = \
+        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Damian Corral"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 10000),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         endpoint_apuestas = "/apuestas"
@@ -172,8 +199,8 @@ class TestApuesta(TestCase):
         apuesta_editada = {
             "valor_apostado": random.uniform(100, 5000),
             "id_apostador": self.id_apostador2,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         solicitud_editar_apuesta = self.client.put(endpoint_apuesta,
@@ -187,41 +214,49 @@ class TestApuesta(TestCase):
         self.assertNotEqual(id_apostador_antes, id_apostador_despues)
 
     def test_obtener_apuesta_por_id(self):
-        nueva_carrera = {
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        nuevo_evento = {
             "nombre": self.data_factory.sentence(),
-            "competidores": [
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
                 {
                     "probabilidad": 0.6,
-                    "competidor": "Paz Manrique"
+                    "posible_resultado": "Paz Manrique",
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 }
             ]
         }
 
-        endpoint_carreras = "/usuario/{}/carreras".format(str(self.usuario_code))
+        endpoint_eventos = "/usuario/{}/eventos".format(str(self.usuario_code))
         headers = {'Content-Type': 'application/json', "Authorization": "Bearer {}".format(self.token)}
 
-        solicitud_nueva_carrera = self.client.post(endpoint_carreras,
-                                                   data=json.dumps(nueva_carrera),
+        solicitud_nuevo_evento = self.client.post(endpoint_eventos,
+                                                   data=json.dumps(nuevo_evento),
                                                    headers=headers)
 
-        respuesta_al_crear_carrera = json.loads(solicitud_nueva_carrera.get_data())
-        id_carrera = respuesta_al_crear_carrera["id"]
-        id_competidor = \
-        [x for x in respuesta_al_crear_carrera["competidores"] if x["nombre_competidor"] == "Paz Manrique"][0]["id"]
+        respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
+        id_evento = respuesta_al_crear_evento["id"]
+        id_posible_resultado = \
+        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Paz Manrique"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 2500),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         endpoint_apuestas = "/apuestas"
@@ -241,41 +276,49 @@ class TestApuesta(TestCase):
         self.assertEqual(apuesta_obtenida["id_apostador"], self.id_apostador)
 
     def test_obtener_apuestas(self):
-        nueva_carrera = {
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        nuevo_evento = {
             "nombre": self.data_factory.sentence(),
-            "competidores": [
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
                 {
                     "probabilidad": 0.6,
-                    "competidor": "Zakaria Vila"
+                    "posible_resultado": "Zakaria Vila",
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 }
             ]
         }
 
-        endpoint_carreras = "/usuario/{}/carreras".format(str(self.usuario_code))
+        endpoint_eventos = "/usuario/{}/eventos".format(str(self.usuario_code))
         headers = {'Content-Type': 'application/json', "Authorization": "Bearer {}".format(self.token)}
 
-        solicitud_nueva_carrera = self.client.post(endpoint_carreras,
-                                                   data=json.dumps(nueva_carrera),
+        solicitud_nuevo_evento = self.client.post(endpoint_eventos,
+                                                   data=json.dumps(nuevo_evento),
                                                    headers=headers)
 
-        respuesta_al_crear_carrera = json.loads(solicitud_nueva_carrera.get_data())
-        id_carrera = respuesta_al_crear_carrera["id"]
-        id_competidor = \
-        [x for x in respuesta_al_crear_carrera["competidores"] if x["nombre_competidor"] == "Zakaria Vila"][0]["id"]
+        respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
+        id_evento = respuesta_al_crear_evento["id"]
+        id_posible_resultado = \
+        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Zakaria Vila"][0]["id"]
 
         nueva_apuesta1 = {
             "valor_apostado": random.uniform(100, 10000),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         endpoint_apuestas = "/apuestas"
@@ -290,8 +333,8 @@ class TestApuesta(TestCase):
         nueva_apuesta2 = {
             "valor_apostado": random.uniform(100, 10000),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         solicitud_nueva_apuesta2 = self.client.post(endpoint_apuestas,
@@ -305,42 +348,50 @@ class TestApuesta(TestCase):
         self.assertGreater(total_apuestas_despues, total_apuestas_antes)
 
     def test_eliminar_apuesta(self):
-        nueva_carrera = {
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        nuevo_evento = {
             "nombre": self.data_factory.sentence(),
-            "competidores": [
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
                 {
                     "probabilidad": 0.6,
-                    "competidor": "Eduardo Tejera"
+                    "posible_resultado": "Eduardo Tejera",
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 },
                 {
                     "probabilidad": round(random.uniform(0.1, 0.99), 2),
-                    "competidor": self.data_factory.name()
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
                 }
             ]
         }
 
-        endpoint_carreras = "/usuario/{}/carreras".format(str(self.usuario_code))
+        endpoint_eventos = "/usuario/{}/eventos".format(str(self.usuario_code))
         headers = {'Content-Type': 'application/json', "Authorization": "Bearer {}".format(self.token)}
 
-        solicitud_nueva_carrera = self.client.post(endpoint_carreras,
-                                                   data=json.dumps(nueva_carrera),
+        solicitud_nuevo_evento = self.client.post(endpoint_eventos,
+                                                   data=json.dumps(nuevo_evento),
                                                    headers=headers)
 
-        respuesta_al_crear_carrera = json.loads(solicitud_nueva_carrera.get_data())
+        respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
 
-        id_carrera = respuesta_al_crear_carrera["id"]
-        id_competidor = \
-        [x for x in respuesta_al_crear_carrera["competidores"] if x["nombre_competidor"] == "Eduardo Tejera"][0]["id"]
+        id_evento = respuesta_al_crear_evento["id"]
+        id_posible_resultado = \
+        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Eduardo Tejera"][0]["id"]
 
         nueva_apuesta1 = {
             "valor_apostado": random.uniform(100, 100000),
             "id_apostador": self.id_apostador,
-            "id_competidor": id_competidor,
-            "id_carrera": id_carrera
+            "id_posible_resultado": id_posible_resultado,
+            "id_evento": id_evento
         }
 
         endpoint_apuestas = "/apuestas"
@@ -363,3 +414,108 @@ class TestApuesta(TestCase):
 
         self.assertLess(total_apuestas_despues, total_apuestas_antes)
         self.assertEqual(solicitud_eliminar_apuesta.status_code, 204)
+
+    def test_obtener_apuestas_por_apostador(self):
+        fecha_inicio, fecha_fin =  generar_fecha_inicio_fin_random()
+        evento_body = {
+            "nombre": self.data_factory.sentence(),
+            "tipo": "CARRERA",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "descripcion": self.data_factory.sentence(nb_words=10),
+            "posibles_resultados": [
+                {
+                    "probabilidad": round(random.uniform(0.1, 0.99), 2),
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
+                },
+                {
+                    "probabilidad": round(random.uniform(0.1, 0.99), 2),
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
+                },
+                {
+                    "probabilidad": round(random.uniform(0.1, 0.99), 2),
+                    "posible_resultado": self.data_factory.name(),
+                    "tipo": "COMPETIDOR"
+                }
+            ]
+        }
+
+        nuevo_evento = self.client.post(f"/usuario/{self.id_apostador}/eventos",
+                                         headers={'Content-Type': 'application/json',
+                                                  "Authorization": f"Bearer {self.apostador_token}"},
+                                         data=json.dumps(evento_body))
+
+        evento_data = json.loads(nuevo_evento.get_data(as_text=True))
+
+        apuesta_body = {
+            "valor_apostado": random.uniform(100, 10000),
+            "id_apostador": self.id_apostador,
+            "id_posible_resultado": evento_data["posibles_resultados"][0]["id"],
+            "id_evento": evento_data["id"]
+        }
+
+        nueva_apuesta = self.client.post("/apuestas",
+                                         headers={'Content-Type': 'application/json',
+                                                  "Authorization": f"Bearer {self.apostador_token}"},
+                                         data=json.dumps(apuesta_body))
+
+        apuesta_data = json.loads(nueva_apuesta.get_data(as_text=True))
+
+        apuestas = self.client.get(f"/usuario/{self.id_apostador}/apuestas",
+                                   headers={"Authorization": f"Bearer {self.apostador_token}"})
+
+        apuestas_data = json.loads(apuestas.get_data(as_text=True))
+
+        self.assertEqual(apuestas.status_code, 200)
+        self.assertEqual(len(apuestas_data), len(db.session.execute(
+            db.select(Apuesta).filter_by(id_apostador=self.id_apostador)).scalars().all()))
+        self.assertEqual(apuestas_data[0]["id"], apuesta_data["id"])
+
+        db.session.query(Evento).filter(Evento.id == evento_data["id"]).delete()
+        db.session.query(Apuesta).filter(Apuesta.id == apuesta_data["id"]).delete()
+        db.session.commit()
+
+    def test_obtener_apuestas_por_apostador_sin_apuestas(self):
+        nuevo_apostador = {
+            "rol": "Apostador",
+            "usuario": self.data_factory.name(),
+            "password": self.data_factory.word(),
+            "firstname": self.data_factory.name(),
+            "lastname": self.data_factory.name(),
+            "email": self.data_factory.email(),
+            "expirationDate": self.data_factory.date(pattern="%m/%y", end_datetime=None),
+            "cvv": self.data_factory.random_int(min=100, max=999),
+            "creditCard": self.data_factory.credit_card_number(),
+        }
+
+        solicitud_nuevo_apostador = self.client.post("/signin",
+                                                     data=json.dumps(nuevo_apostador),
+                                                     headers={'Content-Type': 'application/json'})
+
+        respuesta_al_crear_apostador = json.loads(solicitud_nuevo_apostador.get_data())
+        id_nuevo_apostador = respuesta_al_crear_apostador["id"]
+        nuevo_apostador_token = respuesta_al_crear_apostador["token"]
+        apuestas = self.client.get(f"/usuario/{id_nuevo_apostador}/apuestas",
+                                   headers={"Authorization": f"Bearer {nuevo_apostador_token}"})
+
+        apuestas_data = json.loads(apuestas.get_data(as_text=True))
+
+        self.assertEqual(apuestas.status_code, 200)
+        self.assertEqual(len(apuestas_data), 0)
+
+        db.session.query(Usuario).filter(Usuario.id == id_nuevo_apostador).delete()
+        db.session.commit()
+
+    def test_obtener_apuestas_por_apostador_no_existente(self):
+        apuestas = self.client.get(f"/usuario/{self.data_factory.random_int(min=900, max=999)}/apuestas",
+                                   headers={"Authorization": f"Bearer {self.apostador_token}"})
+
+        self.assertEqual(apuestas.status_code, 404)
+
+def generar_fecha_inicio_fin_random():
+    fecha_inicio = fake.date_this_year()
+    dias_adicionales = fake.random_int(min=1, max=30)
+    fecha_fin = fecha_inicio + timedelta(days=dias_adicionales)
+    return fecha_inicio, fecha_fin
