@@ -58,6 +58,7 @@ class TestUsuario(TestCase):
     def test_crear_usuario(self):
         nuevo_usuario = {
             "rol": "Apostador",
+            "usuario": self.data_factory.name(),
             "email": self.data_factory.email(),
             "password": self.data_factory.word(),
             "firstname": self.data_factory.name(),
@@ -84,6 +85,7 @@ class TestUsuario(TestCase):
 
         first_user = {
             "rol": "Apostador",
+            "usuario": self.data_factory.name(),
             "email": emailUsuario,
             "password": self.data_factory.word(),
             "firstname": self.data_factory.name(),
@@ -98,6 +100,7 @@ class TestUsuario(TestCase):
 
         second_user = {
             "rol": "Apostador",
+            "usuario": self.data_factory.name(),
             "email": emailUsuario,
             "password": self.data_factory.word(),
             "firstname": self.data_factory.name(),

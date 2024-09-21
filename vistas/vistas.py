@@ -20,60 +20,41 @@ transaccion_schema = TransaccionSchema()
 class VistaSignIn(Resource):
 
     def post(self):
+        user = request.json["usuario"]
         rol = request.json["rol"]
+        firstname = request.json["firstname"]
+        lastname = request.json["lastname"]
+        password = request.json["password"]
 
         if rol == "Apostador":
-            firstname = request.json["firstname"]
-            lastname = request.json["lastname"]
             user = request.json["email"]
-            numberCreditCard = request.json["creditCard"]
-            expirationDate = request.json["expirationDate"]
-            cvv = request.json["cvv"]
-            password = request.json["password"]
 
-            usuario = Usuario.query.filter_by(usuario=user).first()
-            db.session.commit()
-            if not usuario:
-                new_credit_card = TarjetaCredito(numero=numberCreditCard, fecha_expiracion=expirationDate, cvv=cvv)
+        usuario = Usuario.query.filter_by(usuario=user).first()
+        if not usuario:
+
+            nuevo_usuario = Usuario(usuario=user, contrasena=password, rol=rol, nombres=firstname, apellidos=lastname)
+
+            if rol == "Apostador":
+                number_credit_card = request.json["creditCard"]
+                expiration_date = request.json["expirationDate"]
+                cvv = request.json["cvv"]
+                new_credit_card = TarjetaCredito(numero=number_credit_card, fecha_expiracion=expiration_date, cvv=cvv)
                 new_credit_card.transacciones.append(Transaccion(valor=100000, tipo=TipoTransaccionEnum.RECARGA.value, fecha_creacion=datetime.now(), id_tarjeta=new_credit_card.id))
                 db.session.add(new_credit_card)
                 db.session.commit()
 
-                nuevo_usuario = Usuario(usuario=user, contrasena=password, rol=rol,
-                                        nombres=firstname, apellidos=lastname, id_tarjeta=new_credit_card.id)
+                nuevo_usuario.id_tarjeta = new_credit_card.id
 
-                db.session.add(nuevo_usuario)
-                db.session.commit()
-
-                token_de_acceso = create_access_token(identity=nuevo_usuario.id,
-                                                      expires_delta=timedelta(days=1),
-                                                      additional_claims={"rol": nuevo_usuario.rol})
-                return {"mensaje": "usuario creado exitosamente", "token": token_de_acceso, "id": nuevo_usuario.id, "rol": nuevo_usuario.rol}
-            else:
-                return {"mensaje": "el usuario ya existe", "cod": "user_exist"}, 400
-
-        else:
-            firstname = request.json["firstname"]
-            lastname = request.json["lastname"]
-            password = request.json["password"]
-            user = request.json["usuario"]
-
-            usuario = Usuario.query.filter_by(usuario=user).first()
+            db.session.add(nuevo_usuario)
             db.session.commit()
-            if not usuario:
 
-                nuevo_usuario = Usuario(usuario=user, contrasena=password, rol=rol,
-                                        nombres=firstname, apellidos=lastname)
+            token_de_acceso = create_access_token(identity=nuevo_usuario.id,
+                                                    expires_delta=timedelta(days=1),
+                                                    additional_claims={"rol": nuevo_usuario.rol})
+            return {"mensaje": "usuario creado exitosamente", "token": token_de_acceso, "id": nuevo_usuario.id, "rol": nuevo_usuario.rol}
+        else:
+            return {"mensaje": "el usuario ya existe", "cod": "user_exist"}, 400
 
-                db.session.add(nuevo_usuario)
-                db.session.commit()
-
-                token_de_acceso = create_access_token(identity=nuevo_usuario.id,
-                                                      expires_delta=timedelta(days=1),
-                                                      additional_claims={"rol": nuevo_usuario.rol})
-                return {"mensaje": "usuario creado exitosamente", "token": token_de_acceso, "id": nuevo_usuario.id, "rol": nuevo_usuario.rol}
-            else:
-                return {"mensaje": "el usuario ya existe", "cod": "user_exist"}, 400
 
     def put(self, id_usuario):
         usuario = db.get_or_404(Usuario, id_usuario)
@@ -116,21 +97,25 @@ class VistaCarrerasUsuario(Resource):
 
     @jwt_required()
     def post(self, id_usuario):
-        fecha_inicio = datetime.strptime(request.json["fecha_inicio"], '%Y-%m-%d').date()
-        fecha_fin = datetime.strptime(request.json["fecha_fin"], '%Y-%m-%d').date()
+        try:
+            fecha_inicio = datetime.strptime(request.json["fecha_inicio"], '%Y-%m-%d').date()
+            fecha_fin = datetime.strptime(request.json["fecha_fin"], '%Y-%m-%d').date()
 
-        equipo_1 = request.json["equipo_1"] if request.json["tipo"] == "PARTIDO" else None
-        equipo_2 = request.json["equipo_2"] if request.json["tipo"] == "PARTIDO" else None
+            equipo_1 = request.json["equipo_1"] if request.json["tipo"] == "PARTIDO" else None
+            equipo_2 = request.json["equipo_2"] if request.json["tipo"] == "PARTIDO" else None
 
-        nuevo_evento = Evento(
-            nombre=request.json["nombre"],
-            tipo=request.json["tipo"],
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            descripcion=request.json["descripcion"],
-            equipo_1=equipo_1,
-            equipo_2=equipo_2
-        )
+            nuevo_evento = Evento(
+                nombre=request.json["nombre"],
+                tipo=request.json["tipo"],
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                descripcion=request.json["descripcion"],
+                equipo_1=equipo_1,
+                equipo_2=equipo_2
+            )
+        except:
+            return 'Revise los datos enviados de el evento', 400
+
         for item in request.json["posibles_resultados"]:
             cuota = round((item["probabilidad"] / (1 - item["probabilidad"])), 2)
             posible_resultado = PosibleResultado(posible_resultado=item["posible_resultado"],
@@ -138,7 +123,7 @@ class VistaCarrerasUsuario(Resource):
                                     tipo=item["tipo"],
                                     cuota=cuota,
                                     id_evento=nuevo_evento.id)
-            nuevo_evento.posibles_resultados.append(posible_resultado)
+        nuevo_evento.posibles_resultados.append(posible_resultado)
         usuario = db.get_or_404(Usuario, id_usuario)
         usuario.eventos.append(nuevo_evento)
 
@@ -240,27 +225,36 @@ class VistaApuesta(Resource):
     def put(self, id_apuesta):
         apuesta = db.get_or_404(Apuesta, id_apuesta)
         valor_anterior = apuesta.valor_apostado
-        apuesta.valor_apostado = request.json.get("valor_apostado", apuesta.valor_apostado)
-        apuesta.id_apostador = request.json.get("id_apostador", apuesta.id_apostador)
-        apuesta.id_posible_resultado = request.json.get("id_posible_resultado", apuesta.id_posible_resultado)
-        apuesta.id_evento = request.json.get("id_evento", apuesta.id_evento)
+        self.actualizar_info_apuesta(apuesta)
 
         usuario = db.get_or_404(Usuario, request.json["id_apostador"])
         if usuario.rol != UserRole.APOSTADOR.value:
             return "El usuario no es apostador", 400
         if usuario is None:
             return "El usuario no existe", 404
-        
+
         saldo_cuenta = db.session.query(func.sum(Transaccion.valor)).filter_by(id_tarjeta=usuario.id_tarjeta).scalar()
         valor_apostado = float(apuesta.valor_apostado)
-        if saldo_cuenta is None or (saldo_cuenta+valor_anterior) < valor_apostado:
+        if saldo_cuenta is None or (saldo_cuenta + valor_anterior) < valor_apostado:
             return "El saldo es insuficiente para realizar la apuesta.", 400
-        
-        tarjeta = db.session.get(TarjetaCredito, usuario.id_tarjeta)
-        tarjeta.transacciones.append(Transaccion(valor=float(round(valor_anterior,2)), tipo=TipoTransaccionEnum.RECARGA.value, fecha_creacion=datetime.now(), id_tarjeta=usuario.id_tarjeta))
-        tarjeta.transacciones.append(Transaccion(valor=float(round(-valor_apostado,2)), tipo=TipoTransaccionEnum.APUESTA.value, fecha_creacion=datetime.now(), id_tarjeta=usuario.id_tarjeta))
-        db.session.commit()
+
+        self.guardar_transacciones_en_base_de_datos(usuario, valor_anterior, valor_apostado)
         return apuesta_schema.dump(apuesta)
+
+    def actualizar_info_apuesta(self, apuesta):
+        apuesta.valor_apostado = request.json.get("valor_apostado", apuesta.valor_apostado)
+        apuesta.id_apostador = request.json.get("id_apostador", apuesta.id_apostador)
+        apuesta.id_posible_resultado = request.json.get("id_posible_resultado", apuesta.id_posible_resultado)
+        apuesta.id_evento = request.json.get("id_evento", apuesta.id_evento)
+        db.session.commit()
+
+    def guardar_transacciones_en_base_de_datos(self, usuario, valor_anterior, valor_apostado):
+        tarjeta = db.session.get(TarjetaCredito, usuario.id_tarjeta)
+        tarjeta.transacciones.append(Transaccion(valor=float(round(valor_anterior,2)), tipo=TipoTransaccionEnum.RECARGA.value, 
+                                                 fecha_creacion=datetime.now(), id_tarjeta=usuario.id_tarjeta))
+        tarjeta.transacciones.append(Transaccion(valor=float(round(-valor_apostado,2)), tipo=TipoTransaccionEnum.APUESTA.value, 
+                                                 fecha_creacion=datetime.now(), id_tarjeta=usuario.id_tarjeta))
+        db.session.commit()
 
     @jwt_required()
     def delete(self, id_apuesta):

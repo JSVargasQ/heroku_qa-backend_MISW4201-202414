@@ -116,8 +116,7 @@ class TestApuesta(TestCase):
 
         respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
         id_evento = respuesta_al_crear_evento["id"]
-        id_posible_resultado = \
-        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Lorem ipsum"][0]["id"]
+        id_posible_resultado = respuesta_al_crear_evento["posibles_resultados"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 10000),
@@ -174,8 +173,7 @@ class TestApuesta(TestCase):
 
         respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
         id_evento = respuesta_al_crear_evento["id"]
-        id_posible_resultado = \
-        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Damian Corral"][0]["id"]
+        id_posible_resultado = respuesta_al_crear_evento["posibles_resultados"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 10000),
@@ -249,8 +247,7 @@ class TestApuesta(TestCase):
 
         respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
         id_evento = respuesta_al_crear_evento["id"]
-        id_posible_resultado = \
-        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Paz Manrique"][0]["id"]
+        id_posible_resultado = respuesta_al_crear_evento["posibles_resultados"][0]["id"]
 
         nueva_apuesta = {
             "valor_apostado": random.uniform(100, 2500),
@@ -311,8 +308,7 @@ class TestApuesta(TestCase):
 
         respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
         id_evento = respuesta_al_crear_evento["id"]
-        id_posible_resultado = \
-        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Zakaria Vila"][0]["id"]
+        id_posible_resultado = respuesta_al_crear_evento["posibles_resultados"][0]["id"]
 
         nueva_apuesta1 = {
             "valor_apostado": random.uniform(100, 10000),
@@ -384,8 +380,7 @@ class TestApuesta(TestCase):
         respuesta_al_crear_evento = json.loads(solicitud_nuevo_evento.get_data())
 
         id_evento = respuesta_al_crear_evento["id"]
-        id_posible_resultado = \
-        [x for x in respuesta_al_crear_evento["posibles_resultados"] if x["posible_resultado"] == "Eduardo Tejera"][0]["id"]
+        id_posible_resultado = respuesta_al_crear_evento["posibles_resultados"][0]["id"]
 
         nueva_apuesta1 = {
             "valor_apostado": random.uniform(100, 100000),
