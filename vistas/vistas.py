@@ -123,7 +123,7 @@ class VistaCarrerasUsuario(Resource):
                                     tipo=item["tipo"],
                                     cuota=cuota,
                                     id_evento=nuevo_evento.id)
-        nuevo_evento.posibles_resultados.append(posible_resultado)
+            nuevo_evento.posibles_resultados.append(posible_resultado)
         usuario = db.get_or_404(Usuario, id_usuario)
         usuario.eventos.append(nuevo_evento)
 
